@@ -37,10 +37,21 @@
 // src/components/layout/header/mobile-menu/use-mobile-menu-config.tsx
 
 import { observer } from 'mobx-react-lite';
+import { LegacyReportsIcon } from '@deriv/quill-icons/Legacy';
+import { getAnalysisRoutePath } from '@/utils/is-preview-mode';
+import { MenuItem, Text } from '@deriv-com/ui';
 
 export const MenuItems = observer(() => {
-    // No menu items by default - add your custom menu items here
-    return null;
+    return (
+        <MenuItem
+            as='a'
+            className='app-header__menu'
+            href={getAnalysisRoutePath()}
+            leftComponent={<LegacyReportsIcon iconSize='xs' />}
+        >
+            <Text size='sm'>AI Analysis</Text>
+        </MenuItem>
+    );
 });
 
 export const TradershubLink = observer(() => {

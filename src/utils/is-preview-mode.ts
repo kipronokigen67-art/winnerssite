@@ -14,3 +14,6 @@ export const isPreviewMode = (): boolean => process.env.NEXT_PUBLIC_APP_BUILD ==
  * Router basename. Standalone partner deploys are served at the root, so they do not use it.
  */
 export const PREVIEW_BASE_PATH = '/bot/preview';
+
+export const getAnalysisRoutePath = (): string =>
+    isPreviewMode() ? `${PREVIEW_BASE_PATH}/analysis` : '/analysis';

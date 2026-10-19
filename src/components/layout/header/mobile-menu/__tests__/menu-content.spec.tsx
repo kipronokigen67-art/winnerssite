@@ -10,9 +10,6 @@ jest.mock('@deriv-com/ui', () => ({
     useDevice: jest.fn(() => ({ isDesktop: false })),
 }));
 
-// Updated tests to reflect white-labeling changes:
-// - Removed Reports menu item
-// - Menu now only shows theme toggle and logout button
 describe('MenuContent Component', () => {
     const mock_store = mockStore(mock_ws as any);
 
@@ -39,6 +36,7 @@ describe('MenuContent Component', () => {
         render(<MenuContent onLogout={mockOnLogout} />, { wrapper });
         expect(screen.getByText(/Dark theme/)).toBeInTheDocument();
         expect(screen.getByText(/Log out/)).toBeInTheDocument();
+        expect(screen.getByText('AI Analysis').closest('a')).toHaveAttribute('href', '/analysis');
     });
 
     it('adjusts text size for mobile devices', () => {

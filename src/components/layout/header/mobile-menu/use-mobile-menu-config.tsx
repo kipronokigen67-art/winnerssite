@@ -1,7 +1,8 @@
 import { ComponentProps, ReactNode, useMemo } from 'react';
 import useThemeSwitcher from '@/hooks/useThemeSwitcher';
 import RootStore from '@/stores/root-store';
-import { LegacyLogout1pxIcon, LegacyTheme1pxIcon } from '@deriv/quill-icons/Legacy';
+import { getAnalysisRoutePath } from '@/utils/is-preview-mode';
+import { LegacyLogout1pxIcon, LegacyReportsIcon, LegacyTheme1pxIcon } from '@deriv/quill-icons/Legacy';
 import { useTranslations } from '@deriv-com/translations';
 import { ToggleSwitch } from '@deriv-com/ui';
 
@@ -36,19 +37,12 @@ const useMobileMenuConfig = (
                 // ========================================
                 // CUSTOM MENU ITEMS PLACEHOLDER
                 // ========================================
-                //
-                // Add your custom menu items here.
-                //
-                // EXAMPLE:
-                // {
-                //     as: 'a',
-                //     label: localize('Your Page'),
-                //     LeftComponent: YourIcon,
-                //     href: '/your-page',
-                // },
-                //
-                // For desktop menu items, see:
-                // src/components/layout/header/header-config.tsx
+                {
+                    as: 'a',
+                    label: localize('AI Analysis'),
+                    LeftComponent: LegacyReportsIcon,
+                    href: getAnalysisRoutePath(),
+                },
 
                 // Conditionally include theme toggle based on brand config
                 enableThemeToggle && {
