@@ -14,6 +14,26 @@ export type MarketTick = AnalysisTick & {
     symbol: string;
 };
 
+export const mergeMarketTicks = (existing: MarketTick[], incoming: MarketTick[]) => {
+    const existingCounts = new Map<string, number>();
+    existing.forEach(tick => {
+        const key = `${tick.symbol}:${tick.epoch}:${Number(tick.quote)}`;
+        existingCounts.set(key, (existingCounts.get(key) ?? 0) + 1);
+    });
+
+    const incomingCounts = new Map<string, number>();
+    const additions = incoming.filter(tick => {
+        const key = `${tick.symbol}:${tick.epoch}:${Number(tick.quote)}`;
+        const count = (incomingCounts.get(key) ?? 0) + 1;
+        incomingCounts.set(key, count);
+        return count > (existingCounts.get(key) ?? 0);
+    });
+
+    return [...existing, ...additions]
+        .sort((first, second) => first.epoch - second.epoch)
+        .slice(-1000);
+};
+
 type ApiMessage = {
     active_symbols?: unknown[];
     contracts_for?: { available?: unknown[] };
@@ -115,7 +135,15 @@ export class DerivMarketDataClient {
         this.onStatus(this.reconnectAttempt ? 'reconnecting' : 'connecting');
         const url = new URL(WS_URL);
         url.searchParams.set('app_id', this.appId);
-        const socket = this.createSocket(url.toString());
+        let socket: WebSocket;
+        try {
+            socket = this.createSocket(url.toString());
+        } catch (error) {
+            console.error('Could not create Deriv market-data connection:', error);
+            this.onStatus('reconnecting');
+            this.scheduleReconnect();
+            return;
+        }
         this.socket = socket;
 
         socket.addEventListener('open', this.handleOpen);
@@ -243,7 +271,9 @@ export class DerivMarketDataClient {
         let message: ApiMessage;
         try {
             message = JSON.parse(event.data) as ApiMessage;
-        } catch {
+        } catch (error) {
+            console.error('Could not parse Deriv market-data response:', error);
+            this.rejectPendingRequests(new Error('Deriv returned an invalid market-data response.'));
             return;
         }
 

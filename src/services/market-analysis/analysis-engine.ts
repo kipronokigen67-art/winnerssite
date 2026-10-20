@@ -53,6 +53,19 @@ const DIGIT_CONTRACT_TYPES: readonly DigitContractType[] = [
     'DIGITUNDER',
 ];
 
+const getSampleDigits = (ticks: AnalysisTick[], sampleSize: number, pipSize?: number) => {
+    const limit = Number.isFinite(sampleSize) ? Math.max(0, Math.floor(sampleSize)) : 0;
+    const validTicks = ticks.filter(
+        tick => Number.isFinite(tick.epoch) && Number.isFinite(Number(tick.quote))
+    );
+    const selectedTicks = limit === 0 ? [] : validTicks.slice(-limit);
+
+    return selectedTicks.flatMap(tick => {
+        const digit = getLastDigit(tick.quote, pipSize);
+        return digit === null ? [] : [{ digit, epoch: tick.epoch }];
+    });
+};
+
 export const getLastDigit = (quote: number | string, pipSize?: number): number | null => {
     const numericQuote = Number(quote);
     if (!Number.isFinite(numericQuote)) return null;
@@ -74,14 +87,8 @@ export const calculateDigitFrequencies = (
     sampleSize: number,
     pipSize?: number
 ): DigitFrequencies => {
-    const validTicks = ticks
-        .filter(tick => Number.isFinite(tick.epoch) && Number.isFinite(Number(tick.quote)))
-        .slice(-Math.max(0, sampleSize));
     const counts = Array.from({ length: 10 }, () => 0);
-    const digitTicks = validTicks.flatMap(tick => {
-        const digit = getLastDigit(tick.quote, pipSize);
-        return digit === null ? [] : [{ digit, epoch: tick.epoch }];
-    });
+    const digitTicks = getSampleDigits(ticks, sampleSize, pipSize);
 
     digitTicks.forEach(({ digit }) => {
         counts[digit] += 1;
@@ -187,13 +194,7 @@ export const analyzeDigitCondition = (
     }
 
     const type = contractType as DigitContractType;
-    const digits = ticks
-        .filter(tick => Number.isFinite(tick.epoch) && Number.isFinite(Number(tick.quote)))
-        .slice(-Math.max(0, sampleSize))
-        .flatMap(tick => {
-            const digit = getLastDigit(tick.quote, pipSize);
-            return digit === null ? [] : [digit];
-        });
+    const digits = getSampleDigits(ticks, sampleSize, pipSize).map(({ digit }) => digit);
     const observedCount = digits.filter(digit => matchesCondition(digit, type, barrier)).length;
     const observedRate = observedCount / digits.length;
     const baseline = expectedRate(type, barrier);

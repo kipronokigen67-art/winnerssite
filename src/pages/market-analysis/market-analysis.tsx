@@ -9,6 +9,7 @@ import {
 import {
     DerivMarketDataClient,
     isMarketTickFresh,
+    mergeMarketTicks,
     type MarketDataStatus,
     type MarketSymbol,
     type MarketTick,
@@ -32,12 +33,6 @@ const SIGNAL_EXPIRY_MS = 30 * 60_000;
 const SAMPLE_SIZES = [100, 250, 500, 1000];
 
 const asAnalysisTicks = (ticks: MarketTick[]): AnalysisTick[] => ticks.map(({ epoch, quote }) => ({ epoch, quote }));
-
-const mergeTicks = (existing: MarketTick[], incoming: MarketTick[]) => {
-    const ticksByEpoch = new Map<number, MarketTick>();
-    [...existing, ...incoming].forEach(tick => ticksByEpoch.set(tick.epoch, tick));
-    return [...ticksByEpoch.values()].sort((first, second) => first.epoch - second.epoch).slice(-1000);
-};
 
 const readSignalHistory = (): SignalRecord[] => {
     try {
@@ -87,6 +82,8 @@ const MarketAnalysisPage = () => {
     const [barrier, setBarrier] = useState(5);
     const [sampleSize, setSampleSize] = useState(1000);
     const [ticks, setTicks] = useState<MarketTick[]>([]);
+    const ticksRef = useRef(ticks);
+    ticksRef.current = ticks;
     const [isLoading, setIsLoading] = useState(false);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [isAnalysing, setIsAnalysing] = useState(false);
@@ -123,7 +120,7 @@ const MarketAnalysisPage = () => {
             setConnectionStatus,
             tick => {
                 if (tick.symbol !== selectedSymbolRef.current) return;
-                setTicks(previous => mergeTicks(previous, [tick]));
+                setTicks(previous => mergeMarketTicks(previous, [tick]));
                 setClock(Date.now());
             }
         );
@@ -183,7 +180,7 @@ const MarketAnalysisPage = () => {
                     availableContracts.includes(current) ? current : (availableContracts[0] ?? '')
                 );
                 setTicks(previous =>
-                    mergeTicks(
+                    mergeMarketTicks(
                         previous,
                         history.map(tick => ({ ...tick, symbol: selectedSymbol }))
                     )
@@ -301,7 +298,7 @@ const MarketAnalysisPage = () => {
         try {
             const history = await client.getHistory(selectedSymbol, 1000);
             setTicks(previous =>
-                mergeTicks(previous, history.map(tick => ({ ...tick, symbol: selectedSymbol })))
+                mergeMarketTicks(previous, history.map(tick => ({ ...tick, symbol: selectedSymbol })))
             );
             setClock(Date.now());
         } catch (requestError) {
@@ -317,8 +314,8 @@ const MarketAnalysisPage = () => {
         setError('');
         try {
             const history = await client.getHistory(selectedSymbol, 1000);
-            const currentTicks = mergeTicks(
-                ticks,
+            const currentTicks = mergeMarketTicks(
+                ticksRef.current,
                 history.map(tick => ({ ...tick, symbol: selectedSymbol }))
             );
             setTicks(currentTicks);
@@ -531,8 +528,10 @@ const MarketAnalysisPage = () => {
                 <p className='market-analysis__muted'>
                     Statistical validation compares the observed contract condition with its uniform-digit reference,
                     requires a two-sided z-score of at least 1.96 and consistent results in both sample halves, and also
-                    checks the digit distribution (chi-square threshold 16.919). Evidence strength combines sample
-                    adequacy, z-score magnitude, and half-sample consistency; it is not a probability of profit.
+                    checks the digit distribution (chi-square threshold 16.919). Strength = round(100 × min(1, n / 1,000)
+                    × min(1, |z| / 4) × consistency), where consistency is max(0, 1 − the absolute difference between
+                    both half-sample rates) when both halves agree with the reference, otherwise 0. Strength is not a
+                    probability of profit.
                 </p>
                 {currentReport && (
                     <div className='market-analysis__result' aria-live='polite'>
@@ -552,6 +551,10 @@ const MarketAnalysisPage = () => {
                         </div>
                         <p className='market-analysis__invalidation'>
                             Invalidation: {currentReport.report.invalidation}
+                        </p>
+                        <p className='market-analysis__invalidation'>
+                            Expiry: 30 minutes after generation. Live validation requires a tick no older than 30
+                            seconds; expired signals cannot be revalidated.
                         </p>
                     </div>
                 )}

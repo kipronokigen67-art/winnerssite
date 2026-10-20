@@ -1,4 +1,4 @@
-import { DerivMarketDataClient, getVolatilitySymbols } from '../deriv-market-data';
+import { DerivMarketDataClient, getVolatilitySymbols, mergeMarketTicks } from '../deriv-market-data';
 
 class FakeSocket {
     readyState = 0;
@@ -41,12 +41,54 @@ class FakeSocket {
         this.dispatch('message', new MessageEvent('message', { data: JSON.stringify(message) }));
     }
 
+    malformedMessage(data: string) {
+        this.dispatch('message', new MessageEvent('message', { data }));
+    }
+
     private dispatch(type: string, event: Event) {
         (this.listeners.get(type) ?? []).forEach(listener => listener(event));
     }
 }
 
 describe('Deriv public market-data client', () => {
+    it('retries when creating the public WebSocket initially throws', () => {
+        jest.useFakeTimers();
+        let attempts = 0;
+        let socket: FakeSocket | undefined;
+        const onStatus = jest.fn();
+        const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        const client = new DerivMarketDataClient('app-id', onStatus, jest.fn(), () => {
+            attempts += 1;
+            if (attempts === 1) throw new Error('WebSocket unavailable');
+            socket = new FakeSocket();
+            return socket as unknown as WebSocket;
+        });
+
+        client.connect();
+        expect(onStatus).toHaveBeenLastCalledWith('reconnecting');
+        jest.advanceTimersByTime(1000);
+
+        expect(attempts).toBe(2);
+        socket?.open();
+        expect(onStatus).toHaveBeenLastCalledWith('connected');
+
+        client.disconnect();
+        errorSpy.mockRestore();
+        jest.useRealTimers();
+    });
+
+    it('preserves ticks sharing a timestamp and repeated quotes while merging overlapping history', () => {
+        const history = [
+            { symbol: 'R_10', epoch: 1_700_000_000, quote: 123.45 },
+            { symbol: 'R_10', epoch: 1_700_000_000, quote: 123.46 },
+            { symbol: 'R_10', epoch: 1_700_000_000, quote: 123.45 },
+        ];
+
+        const merged = mergeMarketTicks([history[0]], history);
+
+        expect(merged).toEqual(history);
+    });
+
     it('loads live volatility symbols without authorizing or requesting a trade', async () => {
         let socket: FakeSocket | undefined;
         const client = new DerivMarketDataClient('public-app-id', jest.fn(), jest.fn(), url => {
@@ -129,6 +171,25 @@ describe('Deriv public market-data client', () => {
 
         client.disconnect();
         expect(onStatus).toHaveBeenLastCalledWith('disconnected');
+    });
+
+    it('rejects pending requests when the public feed sends malformed JSON', async () => {
+        let socket: FakeSocket | undefined;
+        const client = new DerivMarketDataClient('app-id', jest.fn(), jest.fn(), () => {
+            socket = new FakeSocket();
+            return socket as unknown as WebSocket;
+        });
+        const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        client.connect();
+        socket?.open();
+
+        const pendingSymbols = client.getSymbols();
+        socket?.malformedMessage('{invalid json');
+
+        await expect(pendingSymbols).rejects.toThrow('Deriv returned an invalid market-data response');
+        expect(errorSpy).toHaveBeenCalled();
+        errorSpy.mockRestore();
+        client.disconnect();
     });
 
     it('filters volatility markets from the dynamically returned active-symbol list', () => {

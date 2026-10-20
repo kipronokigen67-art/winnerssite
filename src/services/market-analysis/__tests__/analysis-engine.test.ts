@@ -21,6 +21,30 @@ describe('market-analysis statistics', () => {
         });
     });
 
+    it('uses the same valid-tick sample for digit counts and signal validation', () => {
+        const ticks = [...ticksForDigits(Array.from({ length: 100 }, (_, index) => index % 10)), {
+            epoch: 1_700_000_100,
+            quote: 'not-a-quote',
+        }];
+
+        expect(calculateDigitFrequencies(ticks, 100, 1).sampleSize).toBe(100);
+        expect(analyzeDigitCondition(ticks, 100, 'DIGITMATCH', 5, 1).sampleSize).toBe(100);
+    });
+
+    it('returns an empty sample when the requested sample size is zero or invalid', () => {
+        const ticks = ticksForDigits([1, 2, 3]);
+
+        expect(calculateDigitFrequencies(ticks, 0)).toMatchObject({
+            counts: Array(10).fill(0),
+            percentages: Array(10).fill(0),
+            sampleSize: 0,
+            latestDigit: null,
+            sampleStart: null,
+            sampleEnd: null,
+        });
+        expect(calculateDigitFrequencies(ticks, Number.NaN).sampleSize).toBe(0);
+    });
+
     it('uses the quote precision supplied by the active symbol', () => {
         expect(getLastDigit('123.450', 0.01)).toBe(5);
     });
