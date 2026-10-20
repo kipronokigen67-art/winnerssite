@@ -1,4 +1,9 @@
-import { DerivMarketDataClient, getVolatilitySymbols, mergeMarketTicks } from '../deriv-market-data';
+import {
+    DerivMarketDataClient,
+    getVolatilitySymbols,
+    mergeMarketTicks,
+    mergeMarketTicksForSymbol,
+} from '../deriv-market-data';
 
 class FakeSocket {
     readyState = 0;
@@ -87,6 +92,22 @@ describe('Deriv public market-data client', () => {
         const merged = mergeMarketTicks([history[0]], history);
 
         expect(merged).toEqual(history);
+    });
+
+    it('keeps stale results from a previously selected market out of the active market sample', () => {
+        const existing = [
+            { symbol: 'R_10', epoch: 1_700_000_000, quote: 123.45 },
+            { symbol: 'R_25', epoch: 1_700_000_001, quote: 456.78 },
+        ];
+        const incoming = [
+            { symbol: 'R_10', epoch: 1_700_000_002, quote: 123.46 },
+            { symbol: 'R_25', epoch: 1_700_000_003, quote: 456.79 },
+        ];
+
+        expect(mergeMarketTicksForSymbol(existing, incoming, 'R_25')).toEqual([
+            existing[1],
+            incoming[1],
+        ]);
     });
 
     it('loads live volatility symbols without authorizing or requesting a trade', async () => {

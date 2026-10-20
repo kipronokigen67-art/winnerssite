@@ -2,6 +2,7 @@ import {
     analyzeDigitCondition,
     calculateDigitFrequencies,
     getLastDigit,
+    resolveSignalStatus,
     type AnalysisTick,
 } from '../analysis-engine';
 import { isMarketTickFresh } from '../deriv-market-data';
@@ -96,6 +97,36 @@ describe('market-analysis statistics', () => {
         expect(analyzeDigitCondition(ticks, 200, 'DIGITOVER', 9, 1).message).toContain(
             'barrier is not valid'
         );
+    });
+
+    it('does not relabel a saved no-signal report as a generated signal during revalidation', () => {
+        expect(
+            resolveSignalStatus('No signal', {
+                status: 'Signal generated',
+                sampleSize: 1000,
+                observedPercent: 18,
+            })
+        ).toBe('No signal');
+    });
+
+    it('invalidates a generated signal when fresh data no longer passes the signal checks', () => {
+        expect(
+            resolveSignalStatus('Signal generated', {
+                status: 'No signal',
+                sampleSize: 1000,
+                observedPercent: 10,
+            })
+        ).toBe('Invalidated');
+    });
+
+    it('requires enough valid observations before restoring a generated signal', () => {
+        expect(
+            resolveSignalStatus('Signal generated', {
+                status: 'Signal generated',
+                sampleSize: 99,
+                observedPercent: 20,
+            })
+        ).toBe('Unable to validate');
     });
 
     it('marks data stale when disconnected, old, or implausibly in the future', () => {

@@ -42,6 +42,25 @@ export type AnalysisReport = {
     invalidation: string;
 };
 
+export const resolveSignalStatus = (
+    originalStatus: SignalStatus,
+    validation: Pick<AnalysisReport, 'status' | 'sampleSize' | 'observedPercent'>
+): SignalStatus => {
+    if (validation.sampleSize < 100 || validation.observedPercent === null) return 'Unable to validate';
+
+    if (originalStatus === 'Signal generated') {
+        if (validation.status === 'Signal generated') return 'Signal generated';
+        if (validation.status === 'No signal') return 'Invalidated';
+        return 'Unable to validate';
+    }
+
+    if (originalStatus === 'No signal') {
+        return validation.status === 'Unable to validate' ? 'Unable to validate' : 'No signal';
+    }
+
+    return originalStatus;
+};
+
 const MAX_SIGNAL_DATA_AGE_MS = 30_000;
 
 const DIGIT_CONTRACT_TYPES: readonly DigitContractType[] = [

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     analyzeDigitCondition,
     calculateDigitFrequencies,
+    resolveSignalStatus,
     type AnalysisReport,
     type AnalysisTick,
     type SignalStatus,
@@ -10,6 +11,7 @@ import {
     DerivMarketDataClient,
     isMarketTickFresh,
     mergeMarketTicks,
+    mergeMarketTicksForSymbol,
     type MarketDataStatus,
     type MarketSymbol,
     type MarketTick,
@@ -93,6 +95,8 @@ const MarketAnalysisPage = () => {
     const [storageError, setStorageError] = useState('');
     const selectedSymbolRef = useRef(selectedSymbol);
     selectedSymbolRef.current = selectedSymbol;
+    const connectionStatusRef = useRef(connectionStatus);
+    connectionStatusRef.current = connectionStatus;
 
     const marketSymbol = symbols.find(({ symbol }) => symbol === selectedSymbol);
     const latestTick = ticks[ticks.length - 1];
@@ -259,17 +263,7 @@ const MarketAnalysisPage = () => {
                     clock,
                     isMarketTickFresh(ticks[ticks.length - 1]?.epoch ?? 0, clock, connectionStatus, STALE_AFTER_MS)
                 );
-                if (validation.sampleSize < 100 || validation.observedPercent === null) {
-                    status = 'Unable to validate';
-                } else if (validation.status === 'Signal generated') {
-                    status = 'Signal generated';
-                } else if (record.status === 'Signal generated' || record.status === 'Analysing') {
-                    status = 'Invalidated';
-                } else if (validation.status === 'No signal') {
-                    status = 'No signal';
-                } else {
-                    status = 'Unable to validate';
-                }
+                status = resolveSignalStatus(record.report.status, validation);
             }
 
             if (status === record.status) return record;
@@ -293,16 +287,25 @@ const MarketAnalysisPage = () => {
 
     const handleRefreshData = useCallback(async () => {
         if (!client || !selectedSymbol || connectionStatus !== 'connected') return;
+        const requestedSymbol = selectedSymbol;
         setIsRefreshing(true);
         setError('');
         try {
-            const history = await client.getHistory(selectedSymbol, 1000);
-            setTicks(previous =>
-                mergeMarketTicks(previous, history.map(tick => ({ ...tick, symbol: selectedSymbol })))
-            );
-            setClock(Date.now());
+            const history = await client.getHistory(requestedSymbol, 1000);
+            if (selectedSymbolRef.current === requestedSymbol) {
+                setTicks(previous =>
+                    mergeMarketTicksForSymbol(
+                        previous,
+                        history.map(tick => ({ ...tick, symbol: requestedSymbol })),
+                        requestedSymbol
+                    )
+                );
+                setClock(Date.now());
+            }
         } catch (requestError) {
-            setError(requestError instanceof Error ? requestError.message : 'Unable to refresh market data.');
+            if (selectedSymbolRef.current === requestedSymbol) {
+                setError(requestError instanceof Error ? requestError.message : 'Unable to refresh market data.');
+            }
         } finally {
             setIsRefreshing(false);
         }
@@ -310,39 +313,44 @@ const MarketAnalysisPage = () => {
 
     const handleAnalyse = useCallback(async () => {
         if (!client || !selectedSymbol || !selectedContract || !marketSymbol) return;
+        const requestedSymbol = selectedSymbol;
         setIsAnalysing(true);
         setError('');
         try {
-            const history = await client.getHistory(selectedSymbol, 1000);
-            const currentTicks = mergeMarketTicks(
+            const history = await client.getHistory(requestedSymbol, 1000);
+            const currentTicks = mergeMarketTicksForSymbol(
                 ticksRef.current,
-                history.map(tick => ({ ...tick, symbol: selectedSymbol }))
+                history.map(tick => ({ ...tick, symbol: requestedSymbol })),
+                requestedSymbol
             );
-            setTicks(currentTicks);
-            setClock(Date.now());
+            if (selectedSymbolRef.current === requestedSymbol) {
+                setTicks(currentTicks);
+                setClock(Date.now());
+            }
+            const generatedAt = Date.now();
             const report = analyzeDigitCondition(
                 asAnalysisTicks(currentTicks),
                 sampleSize,
                 selectedContract,
                 isBarrierContract(selectedContract) ? barrier : undefined,
                 marketSymbol.pip,
-                Date.now(),
+                generatedAt,
                 isMarketTickFresh(
                     currentTicks[currentTicks.length - 1]?.epoch ?? 0,
-                    Date.now(),
-                    connectionStatus,
+                    generatedAt,
+                    connectionStatusRef.current,
                     STALE_AFTER_MS
                 )
             );
             const key = [
-                selectedSymbol,
+                requestedSymbol,
                 selectedContract,
                 isBarrierContract(selectedContract) ? barrier : 'no-barrier',
                 currentTicks[currentTicks.length - 1]?.epoch ?? 'no-tick',
             ].join(':');
             const newRecord: SignalRecord = {
                 id: key,
-                symbol: selectedSymbol,
+                symbol: requestedSymbol,
                 displayName: marketSymbol.display_name,
                 contractType: selectedContract,
                 barrier: isBarrierContract(selectedContract) ? barrier : undefined,
@@ -369,7 +377,8 @@ const MarketAnalysisPage = () => {
                     <h1>AI Analysis &amp; Signals</h1>
                     <p className='market-analysis__intro'>
                         Explore live Deriv volatility-index ticks and descriptive digit statistics. This tool never places
-                        trades or controls your bots.
+                        trades or controls your bots. No AI model is connected; results are computed using deterministic
+                        statistical tests on the displayed market data.
                     </p>
                 </div>
                 <div className={`market-analysis__connection market-analysis__connection--${isFresh ? 'live' : 'quiet'}`}>

@@ -34,6 +34,16 @@ export const mergeMarketTicks = (existing: MarketTick[], incoming: MarketTick[])
         .slice(-1000);
 };
 
+export const mergeMarketTicksForSymbol = (
+    existing: MarketTick[],
+    incoming: MarketTick[],
+    symbol: string
+) =>
+    mergeMarketTicks(
+        existing.filter(tick => tick.symbol === symbol),
+        incoming.filter(tick => tick.symbol === symbol)
+    );
+
 type ApiMessage = {
     active_symbols?: unknown[];
     contracts_for?: { available?: unknown[] };
