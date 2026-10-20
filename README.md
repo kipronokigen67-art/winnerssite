@@ -83,6 +83,23 @@ This produces a static build in the `dist/` directory (Rsbuild output — there 
 `.next`/`out`). Serve the contents of `dist/` from any web server or static host.
 SmartCharts engine assets are copied into `dist/js/smartcharts/` during the build.
 
+## Public market analysis
+
+The **AI Analysis** link opens an independent `/analysis` page. It uses the existing
+`NEXT_PUBLIC_DERIV_APP_ID` build-time setting to connect to Deriv's public WebSocket
+API, discover currently available volatility indices and digit contract types, and
+retrieve genuine tick history and live ticks. It does not use an account token,
+authorize an account, place contracts, or start or change a bot. If the app ID is
+missing, or the public feed disconnects or becomes stale, the page reports that
+condition instead of presenting old or simulated values as live.
+
+The page reports digit frequencies and deterministic statistical checks against
+uniform-digit reference rates. A signal is a descriptive historical watch condition,
+not a prediction or a recommendation to trade; its evidence-strength score is not a
+probability of profit. Signal history is kept in that browser's local storage and
+never represents actual contract outcomes. No OpenAI-compatible service or paid AI
+API is required or called by this feature.
+
 ## Google Drive integration (optional)
 
 Saving/loading strategies to Google Drive stays disabled unless `GD_CLIENT_ID`,
