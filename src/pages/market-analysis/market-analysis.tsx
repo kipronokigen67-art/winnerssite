@@ -74,7 +74,6 @@ const getStatusLabel = (status: MarketDataStatus) => {
 };
 
 const MarketAnalysisPage = () => {
-    const appId = process.env.NEXT_PUBLIC_DERIV_APP_ID ?? '';
     const [client, setClient] = useState<DerivMarketDataClient | null>(null);
     const [connectionStatus, setConnectionStatus] = useState<MarketDataStatus>('connecting');
     const [symbols, setSymbols] = useState<MarketSymbol[]>([]);
@@ -113,20 +112,15 @@ const MarketAnalysisPage = () => {
     );
 
     useEffect(() => {
-        if (!appId.trim()) {
-            setConnectionStatus('disconnected');
-            setError('Public market data requires the Deriv application ID configured for this site. No account token is needed.');
-            return;
-        }
-
         const marketDataClient = new DerivMarketDataClient(
-            appId,
             setConnectionStatus,
             tick => {
                 if (tick.symbol !== selectedSymbolRef.current) return;
                 setTicks(previous => mergeMarketTicks(previous, [tick]));
                 setClock(Date.now());
-            }
+            },
+            undefined,
+            connectionError => setError(connectionError?.message ?? '')
         );
         setClient(marketDataClient);
         marketDataClient.connect();
@@ -134,7 +128,7 @@ const MarketAnalysisPage = () => {
         return () => {
             marketDataClient.disconnect();
         };
-    }, [appId]);
+    }, []);
 
     useEffect(() => {
         if (!client || connectionStatus !== 'connected') return;
