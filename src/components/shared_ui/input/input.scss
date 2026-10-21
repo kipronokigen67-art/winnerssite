@@ -117,7 +117,7 @@
 
         /* Not empty fields */
         &:focus,
-        &:not(:focus, [value='']) {
+        &:not(:focus, :placeholder-shown) {
             outline: none;
 
             & ~ label {
@@ -160,7 +160,7 @@
             }
         }
 
-        &:not(.dc-input--no-placeholder, :focus, [value='']) {
+        &:not(.dc-input--no-placeholder, :focus, :placeholder-shown) {
             & ~ label {
                 color: var(--text-general);
             }
