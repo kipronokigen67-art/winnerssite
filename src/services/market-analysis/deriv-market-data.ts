@@ -132,7 +132,8 @@ export class DerivMarketDataClient {
         private readonly appId: string,
         private readonly onStatus: (status: MarketDataStatus) => void,
         private readonly onTick: (tick: MarketTick) => void,
-        private readonly createSocket: (url: string) => WebSocket = url => new WebSocket(url)
+        private readonly createSocket: (url: string) => WebSocket = url => new WebSocket(url),
+        private readonly onConnectionError: (error: Error | null) => void = () => {}
     ) {}
 
     connect() {
@@ -149,6 +150,9 @@ export class DerivMarketDataClient {
         try {
             socket = this.createSocket(url.toString());
         } catch (error) {
+            this.onConnectionError(
+                error instanceof Error ? error : new Error('Could not create the Deriv market-data connection.')
+            );
             console.error('Could not create Deriv market-data connection:', error);
             this.onStatus('reconnecting');
             this.scheduleReconnect();
@@ -274,6 +278,7 @@ export class DerivMarketDataClient {
 
     private readonly handleOpen = () => {
         this.reconnectAttempt = 0;
+        this.onConnectionError(null);
         this.onStatus('connected');
     };
 
@@ -310,11 +315,13 @@ export class DerivMarketDataClient {
         this.tickSubscriptions.clear();
         this.rejectPendingRequests(new Error('Deriv market-data connection was interrupted.'));
         if (this.stopped) return;
+        this.onConnectionError(new Error('Deriv market-data connection closed. Reconnecting.'));
         this.onStatus('reconnecting');
         this.scheduleReconnect();
     };
 
     private readonly handleError = () => {
+        this.onConnectionError(new Error('Could not establish the Deriv market-data WebSocket connection.'));
         this.socket?.close();
     };
 
