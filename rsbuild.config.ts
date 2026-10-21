@@ -29,8 +29,9 @@ export default defineConfig({
     entry: { index: './src/main.tsx' },
     define: {
       'process.env': {
-        // Deriv app id — drives OAuth login/sign-up and WebSocket connections. The
-        // preview pipeline sets this from BOT_APP_ID (see scripts/build-previews.js);
+        // Deriv OAuth client ID — drives login/sign-up and authenticated bot sessions.
+        // Public market data uses the environment-selected public WebSocket endpoint.
+        // The preview pipeline sets this from BOT_APP_ID (see scripts/build-previews.js);
         // sibling templates use the same name.
         NEXT_PUBLIC_DERIV_APP_ID: JSON.stringify(process.env.NEXT_PUBLIC_DERIV_APP_ID ?? ''),
         // Authoritative environment signal. The bot's URL resolver (config.ts) and
