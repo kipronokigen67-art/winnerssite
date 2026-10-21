@@ -1,13 +1,13 @@
 {
-    "brand_name": "YourBrand",
-    "brand_domain": "yourbrand.com",
+    "brand_name": "Winners",
+    "brand_domain": "winners.site",
     "brand_hostname": {
-        "staging": "staging.yourbrand.com/dashboard",
-        "production": "yourbrand.com/dashboard"
+        "staging": "staging.winners.site/dashboard",
+        "production": "winners.site/dashboard"
     },
-    "domain_name": "YourBrand.com",
+    "domain_name": "Winners.site",
     "colors": {
-        "primary": "#3B82F6",
+        "primary": "#0EA5E9",
         "secondary": "#64748b",
         "tertiary": "#8b5cf6",
         "success": "#10b981",
@@ -89,10 +89,10 @@
         },
         "hostname": {
             "production": {
-                "com": "bot.yourbrand.com"
+                "com": "winners.site"
             },
             "staging": {
-                "com": "staging-bot.yourbrand.com"
+                "com": "staging.winners.site"
             }
         },
         "auth2_url": {

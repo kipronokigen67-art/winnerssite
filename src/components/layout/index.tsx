@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import clsx from 'clsx';
 import { observer } from 'mobx-react-lite';
-import { Outlet } from 'react-router';
+import { Outlet, useLocation } from 'react-router';
 import { api_base } from '@/external/bot-skeleton';
 import { useStore } from '@/hooks/useStore';
 import { useDevice } from '@deriv-com/ui';
@@ -14,6 +14,7 @@ import './layout.scss';
 
 const Layout = observer(() => {
     const { isDesktop } = useDevice();
+    const { pathname } = useLocation();
     const store = useStore();
     const is_quick_strategy_active = store?.quick_strategy?.is_open;
     const isCallbackPage = window.location.pathname === '/callback';
@@ -29,6 +30,17 @@ const Layout = observer(() => {
         currency === '';
     const [clientHasCurrency, setClientHasCurrency] = useState(ifClientAccountHasCurrency);
     const [isAuthenticating, setIsAuthenticating] = useState(true); // Start with true to prevent flashing
+
+    useEffect(() => {
+        if (pathname !== '/analysis') return;
+
+        const readyState = api_base.api?.connection?.readyState;
+        if (readyState === 0 || readyState === 1) return;
+
+        api_base.init().catch(error => {
+            console.error('API initialization failed on the analysis route:', error);
+        });
+    }, [pathname]);
 
     // Expose setClientHasCurrency to window for global access
     useEffect(() => {

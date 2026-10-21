@@ -1,46 +1,45 @@
-# Deriv Trading Bot
+# Winners.site
 
-A self-hosted, visual trading-bot builder on the Deriv WebSocket API. Drag-and-drop
-strategy building with Blockly, an interactive SmartCharts chart, automated strategy
-execution, and dashboard/tutorials.
+A trading workspace for Deriv with a native Winners bot dashboard, a Blockly strategy
+builder, an interactive SmartCharts chart, and tutorials.
 
 > **Note:** Unlike the other templates in this repo (Rise/Fall, Accumulators, Digits)
 > which are **Next.js** apps, the bot is a **[Rsbuild](https://rsbuild.dev) + React
 > Router** single-page app. The commands, build output, and environment variables
 > below differ accordingly.
 
+## Native bots
+
+The dashboard includes the **Over 2 → Under 7 recovery bot** as an in-app native
+workflow; it does not require XML downloads. It discovers open symbols and the
+Over/Under contracts available for the selected symbol from Deriv before any purchase.
+It uses finite signal and session deadlines, bounded tick history, explicit
+demo/real account selection, stake and session limits, confirmed contract outcomes,
+and a Stop control. A loss changes the next configured strategy only after Deriv
+confirms that contract as lost. This is a risk-management workflow, not a claim of
+profitability.
+
+Other contract types remain available through the existing Blockly builder. They are
+not presented as operational native bots until their own configuration and execution
+flows are implemented.
+
 ## Prerequisites
 
-- Node.js 18.18 or later
+- Node.js 22 or later
 
 ## Step 1: Register Your App ID
 
-1. Log in to your Deriv account and go to the [API Token page](https://app.deriv.com/account/api-token) to create a token with the required scopes.
-2. Navigate to [App Registration](https://developers.deriv.com/dashboard/) and register a new application.
-3. Set the **Redirect URI** to the URL where you will host this app (e.g. `http://localhost:4003` for local development).
-4. Copy the **App ID** shown after registration — you will need it in the next step.
+1. Navigate to [App Registration](https://developers.deriv.com/dashboard/) and register a new application.
+2. Set the **Redirect URI** to the exact app origin (for example, `http://localhost:4003` locally or `https://winners.site` in production).
+3. Enable the `trade` OAuth scope required by native trading.
+4. Copy the **App ID** shown after registration. Users authorize through OAuth; do not put account tokens in build configuration.
 
-## Step 2: Configure `.env`
+## Step 2: Configure the build environment
 
-Copy `.env.example` to `.env` and fill in your values:
-
-```bash
-cp .env.example .env
-```
-
-```env
-# Required: Deriv app id — drives OAuth login/sign-up and WebSocket connections.
-NEXT_PUBLIC_DERIV_APP_ID=your_app_id_here
-
-# Optional: environment + affiliate attribution.
-NEXT_PUBLIC_DERIV_ENV=production
-NEXT_PUBLIC_DERIV_REFERRAL_LINK=your_referral_link_here
-
-# Optional: Google Drive integration (leave blank to disable).
-GD_CLIENT_ID=
-GD_APP_ID=
-GD_API_KEY=
-```
+Provide the public settings below through your local build environment or hosting
+provider. The app ID, environment, app name, and referral URL are embedded in the
+client bundle; never place account tokens, passwords, or private credentials in
+`NEXT_PUBLIC_*` settings.
 
 | Variable | Description |
 |---|---|

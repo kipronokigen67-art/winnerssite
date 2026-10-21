@@ -126,7 +126,9 @@ const MarketAnalysisPage = () => {
                 if (tick.symbol !== selectedSymbolRef.current) return;
                 setTicks(previous => mergeMarketTicks(previous, [tick]));
                 setClock(Date.now());
-            }
+            },
+            undefined,
+            connectionError => setError(connectionError?.message ?? '')
         );
         setClient(marketDataClient);
         marketDataClient.connect();

@@ -61,21 +61,24 @@ describe('Deriv public market-data client', () => {
         let attempts = 0;
         let socket: FakeSocket | undefined;
         const onStatus = jest.fn();
+        const onConnectionError = jest.fn();
         const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
         const client = new DerivMarketDataClient('app-id', onStatus, jest.fn(), () => {
             attempts += 1;
             if (attempts === 1) throw new Error('WebSocket unavailable');
             socket = new FakeSocket();
             return socket as unknown as WebSocket;
-        });
+        }, onConnectionError);
 
         client.connect();
         expect(onStatus).toHaveBeenLastCalledWith('reconnecting');
+        expect(onConnectionError).toHaveBeenLastCalledWith(new Error('WebSocket unavailable'));
         jest.advanceTimersByTime(1000);
 
         expect(attempts).toBe(2);
         socket?.open();
         expect(onStatus).toHaveBeenLastCalledWith('connected');
+        expect(onConnectionError).toHaveBeenLastCalledWith(null);
 
         client.disconnect();
         errorSpy.mockRestore();
@@ -178,10 +181,17 @@ describe('Deriv public market-data client', () => {
     it('rejects outstanding requests and schedules safe reconnection on disconnect', async () => {
         let socket: FakeSocket | undefined;
         const onStatus = jest.fn();
-        const client = new DerivMarketDataClient('app-id', onStatus, jest.fn(), () => {
-            socket = new FakeSocket();
-            return socket as unknown as WebSocket;
-        });
+        const onConnectionError = jest.fn();
+        const client = new DerivMarketDataClient(
+            'app-id',
+            onStatus,
+            jest.fn(),
+            () => {
+                socket = new FakeSocket();
+                return socket as unknown as WebSocket;
+            },
+            onConnectionError
+        );
         client.connect();
         socket?.open();
 
@@ -189,6 +199,9 @@ describe('Deriv public market-data client', () => {
         socket?.serverClose();
         await expect(pendingSymbols).rejects.toThrow('connection was interrupted');
         expect(onStatus).toHaveBeenLastCalledWith('reconnecting');
+        expect(onConnectionError).toHaveBeenLastCalledWith(
+            new Error('Deriv market-data connection closed. Reconnecting.')
+        );
 
         client.disconnect();
         expect(onStatus).toHaveBeenLastCalledWith('disconnected');

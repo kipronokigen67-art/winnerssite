@@ -1,0 +1,399 @@
+.native-bot-panel {
+    --native-sky: var(--brand-primary, #0ea5e9);
+    --native-sky-deep: #0369a1;
+    --native-sky-pale: #e8f6ff;
+    --native-ink: #102a43;
+    --native-muted: #52677b;
+    --native-border: #cfe4f2;
+
+    width: min(100%, 112rem);
+    margin: 2.4rem auto;
+    overflow: hidden;
+    border: 1px solid var(--native-border);
+    border-radius: 0.8rem;
+    background: #fff;
+    color: var(--native-ink);
+    box-shadow: 0 0.8rem 2.4rem rgb(20 109 165 / 8%);
+
+    &__header {
+        display: flex;
+        align-items: center;
+        gap: 1.6rem;
+        padding: 2rem 2.4rem;
+        border-bottom: 1px solid var(--native-border);
+        background: linear-gradient(105deg, #edf9ff 0%, #fff 68%);
+    }
+
+    &__robot {
+        display: grid;
+        flex: 0 0 5.6rem;
+        width: 5.6rem;
+        height: 5.6rem;
+        place-items: center;
+        border: 1px solid #a7daf7;
+        border-radius: 0.8rem;
+        background: var(--native-sky-pale);
+    }
+
+    &__title {
+        flex: 1;
+        min-width: 0;
+
+        h2 {
+            margin: 0.2rem 0 0.4rem;
+            color: var(--native-ink);
+            font-size: 1.8rem;
+            line-height: 1.25;
+        }
+
+        p:last-child {
+            margin: 0;
+            color: var(--native-muted);
+            font-size: 1.3rem;
+            line-height: 1.45;
+        }
+    }
+
+    &__eyebrow {
+        margin: 0;
+        color: var(--native-sky-deep);
+        font-size: 1.1rem;
+        font-weight: 700;
+        line-height: 1.3;
+    }
+
+    &__status {
+        display: inline-flex;
+        flex: 0 0 auto;
+        align-items: center;
+        gap: 0.7rem;
+        padding: 0.6rem 1rem;
+        border: 1px solid var(--native-border);
+        border-radius: 99rem;
+        background: #fff;
+        color: var(--native-muted);
+        font-size: 1.2rem;
+        font-weight: 700;
+
+        span {
+            width: 0.8rem;
+            height: 0.8rem;
+            border-radius: 50%;
+            background: #8296a8;
+        }
+
+        &--analyzing span,
+        &--ready span,
+        &--buying span,
+        &--open span {
+            background: #168bd2;
+        }
+
+        &--won span {
+            background: #12805c;
+        }
+
+        &--lost span,
+        &--rejected span,
+        &--error span,
+        &--disconnected span,
+        &--timed-out span {
+            background: #c2413b;
+        }
+    }
+
+    &__body {
+        padding: 2rem 2.4rem 1.6rem;
+    }
+
+    &__controls {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 1.2rem;
+    }
+
+    &__field {
+        display: flex;
+        min-width: 0;
+        flex-direction: column;
+        gap: 0.5rem;
+        color: var(--native-muted);
+        font-size: 1.2rem;
+        font-weight: 600;
+
+        input,
+        select {
+            box-sizing: border-box;
+            width: 100%;
+            min-width: 0;
+            height: 3.8rem;
+            padding: 0 0.9rem;
+            border: 1px solid #b8cedd;
+            border-radius: 0.5rem;
+            background: #fff;
+            color: var(--native-ink);
+            font: inherit;
+            font-size: 1.3rem;
+        }
+
+        input:focus,
+        select:focus {
+            border-color: var(--native-sky);
+            outline: 2px solid rgb(22 139 210 / 20%);
+            outline-offset: 1px;
+        }
+
+        input:disabled,
+        select:disabled {
+            background: #f2f7fa;
+            color: #607487;
+        }
+    }
+
+    &__real-confirm {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.8rem;
+        margin-top: 1.4rem;
+        color: #8a3d20;
+        font-size: 1.3rem;
+        line-height: 1.45;
+
+        input {
+            flex: 0 0 auto;
+            margin: 0.2rem 0 0;
+            accent-color: var(--native-sky-deep);
+        }
+    }
+
+    &__actions {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1rem;
+        margin-top: 1.8rem;
+    }
+
+    &__start,
+    &__stop {
+        min-width: 12rem;
+        min-height: 4rem;
+        padding: 0.8rem 1.6rem;
+        border: 1px solid transparent;
+        border-radius: 0.5rem;
+        font-size: 1.4rem;
+        font-weight: 700;
+        cursor: pointer;
+    }
+
+    &__start {
+        background: var(--native-sky);
+        color: #fff;
+
+        &:hover:not(:disabled) {
+            background: var(--native-sky-deep);
+        }
+    }
+
+    &__stop {
+        border-color: #d2a7a5;
+        background: #fff;
+        color: #9e302e;
+
+        &:hover:not(:disabled) {
+            background: #fff3f2;
+        }
+    }
+
+    &__start:disabled,
+    &__stop:disabled {
+        cursor: not-allowed;
+        opacity: 0.48;
+    }
+
+    &__connection {
+        margin-inline-start: auto;
+        color: var(--native-muted);
+        font-size: 1.2rem;
+    }
+
+    &__error {
+        margin: 1.4rem 0 0;
+        padding: 1rem 1.2rem;
+        border-inline-start: 3px solid #c2413b;
+        background: #fff4f2;
+        color: #8e2926;
+        font-size: 1.3rem;
+        line-height: 1.45;
+    }
+
+    &__unresolved {
+        margin-top: 1.4rem;
+        padding: 1.2rem;
+        border: 1px solid #d2a7a5;
+        border-radius: 0.5rem;
+        background: #fff8f7;
+        color: #752925;
+        font-size: 1.3rem;
+        line-height: 1.45;
+
+        p {
+            margin: 0 0 1rem;
+        }
+
+        button {
+            min-height: 3.6rem;
+            padding: 0.7rem 1.2rem;
+            border: 1px solid #a94742;
+            border-radius: 0.5rem;
+            background: #fff;
+            color: #752925;
+            font: inherit;
+            font-weight: 700;
+            cursor: pointer;
+        }
+    }
+
+    &__telemetry {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        margin-top: 1.8rem;
+        border: 1px solid var(--native-border);
+        border-radius: 0.6rem;
+        background: #f7fcff;
+
+        div {
+            display: flex;
+            min-width: 0;
+            flex-direction: column;
+            gap: 0.4rem;
+            padding: 1.2rem;
+            border-inline-end: 1px solid var(--native-border);
+            border-bottom: 1px solid var(--native-border);
+        }
+
+        span {
+            color: var(--native-muted);
+            font-size: 1.1rem;
+        }
+
+        strong {
+            overflow-wrap: anywhere;
+            color: var(--native-ink);
+            font-size: 1.35rem;
+            font-variant-numeric: tabular-nums;
+        }
+    }
+
+    &__result {
+        display: flex;
+        justify-content: space-between;
+        gap: 1.2rem;
+        margin-top: 1.4rem;
+        padding: 1rem 0;
+        border-bottom: 1px solid var(--native-border);
+        font-size: 1.3rem;
+
+        span {
+            color: var(--native-muted);
+        }
+
+        strong {
+            text-align: end;
+            overflow-wrap: anywhere;
+        }
+
+        .is-win {
+            color: #116c4d;
+        }
+
+        .is-loss {
+            color: #a83330;
+        }
+    }
+
+    &__disclaimer {
+        margin: 0;
+        padding: 0 2.4rem 1.6rem;
+        color: var(--native-muted);
+        font-size: 1.1rem;
+        line-height: 1.5;
+    }
+
+    @media (max-width: 900px) {
+        &__controls,
+        &__telemetry {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 600px) {
+        margin: 1.6rem 0;
+
+        &__header {
+            align-items: flex-start;
+            flex-wrap: wrap;
+            padding: 1.6rem;
+        }
+
+        &__robot {
+            flex-basis: 4.8rem;
+            width: 4.8rem;
+            height: 4.8rem;
+        }
+
+        &__title {
+            flex-basis: calc(100% - 6.4rem);
+
+            h2 {
+                font-size: 1.6rem;
+            }
+        }
+
+        &__status {
+            margin-inline-start: 6.4rem;
+        }
+
+        &__body {
+            padding: 1.6rem;
+        }
+
+        &__controls {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        &__actions {
+            align-items: stretch;
+        }
+
+        &__start,
+        &__stop {
+            flex: 1 1 12rem;
+        }
+
+        &__connection {
+            width: 100%;
+            margin-inline-start: 0;
+        }
+
+        &__telemetry {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+
+            div {
+                padding: 1rem;
+            }
+        }
+
+        &__result {
+            flex-direction: column;
+
+            strong {
+                text-align: start;
+            }
+        }
+
+        &__disclaimer {
+            padding: 0 1.6rem 1.6rem;
+        }
+    }
+}
