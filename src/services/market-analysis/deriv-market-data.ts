@@ -1,4 +1,5 @@
 import type { AnalysisTick } from './analysis-engine';
+import { getPublicWsUrl } from '../../external/deriv-core/config/urls';
 
 export type MarketDataStatus = 'connecting' | 'connected' | 'reconnecting' | 'disconnected';
 
@@ -68,9 +69,10 @@ type TickSubscription = {
 };
 
 const DIGIT_CONTRACTS = new Set(['DIGITDIFF', 'DIGITEVEN', 'DIGITMATCH', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER']);
-const WS_URL = 'wss://ws.derivws.com/websockets/v3';
 const REQUEST_TIMEOUT_MS = 15_000;
 const MAX_RECONNECT_DELAY_MS = 30_000;
+const MAX_RECONNECT_ATTEMPTS = 5;
+const STABLE_CONNECTION_MS = 30_000;
 
 export const isMarketTickFresh = (
     tickEpoch: number,
@@ -91,16 +93,26 @@ const asRecord = (value: unknown): Record<string, unknown> | null =>
 export const getVolatilitySymbols = (values: unknown[]): MarketSymbol[] =>
     values.flatMap(value => {
         const symbolData = asRecord(value);
-        if (!symbolData || typeof symbolData.symbol !== 'string' || typeof symbolData.display_name !== 'string') {
-            return [];
-        }
+        if (!symbolData) return [];
+
+        const symbol =
+            typeof symbolData.underlying_symbol === 'string'
+                ? symbolData.underlying_symbol
+                : symbolData.symbol;
+        const displayName =
+            typeof symbolData.underlying_symbol_name === 'string'
+                ? symbolData.underlying_symbol_name
+                : symbolData.display_name;
+        if (typeof symbol !== 'string' || typeof displayName !== 'string') return [];
 
         const metadata = [
-            symbolData.display_name,
+            displayName,
             symbolData.market,
             symbolData.market_display_name,
             symbolData.submarket,
             symbolData.submarket_display_name,
+            symbolData.subgroup,
+            symbolData.subgroup_display_name,
         ]
             .filter((field): field is string => typeof field === 'string')
             .join(' ')
@@ -109,11 +121,21 @@ export const getVolatilitySymbols = (values: unknown[]): MarketSymbol[] =>
 
         return [
             {
-                symbol: symbolData.symbol,
-                display_name: symbolData.display_name,
+                symbol,
+                display_name: displayName,
                 market: typeof symbolData.market === 'string' ? symbolData.market : undefined,
-                submarket: typeof symbolData.submarket === 'string' ? symbolData.submarket : undefined,
-                pip: typeof symbolData.pip === 'number' ? symbolData.pip : Number(symbolData.pip) || undefined,
+                submarket:
+                    typeof symbolData.submarket === 'string'
+                        ? symbolData.submarket
+                        : typeof symbolData.subgroup === 'string'
+                          ? symbolData.subgroup
+                          : undefined,
+                pip:
+                    typeof symbolData.pip_size === 'number'
+                        ? symbolData.pip_size
+                        : typeof symbolData.pip === 'number'
+                          ? symbolData.pip
+                          : Number(symbolData.pip) || undefined,
             },
         ];
     });
@@ -122,14 +144,15 @@ export class DerivMarketDataClient {
     private socket: WebSocket | null = null;
     private stopped = false;
     private reconnectAttempt = 0;
+    private lastSocketError: Error | null = null;
     private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    private stableConnectionTimer: ReturnType<typeof setTimeout> | null = null;
     private nextRequestId = 1;
     private readonly pendingRequests = new Map<number, PendingRequest>();
     private readonly contractsCache = new Map<string, Promise<string[]>>();
     private readonly tickSubscriptions = new Map<string, TickSubscription>();
 
     constructor(
-        private readonly appId: string,
         private readonly onStatus: (status: MarketDataStatus) => void,
         private readonly onTick: (tick: MarketTick) => void,
         private readonly createSocket: (url: string) => WebSocket = url => new WebSocket(url),
@@ -138,24 +161,19 @@ export class DerivMarketDataClient {
 
     connect() {
         if (this.stopped || this.socket) return;
-        if (!this.appId.trim()) {
-            this.onStatus('disconnected');
-            return;
-        }
 
         this.onStatus(this.reconnectAttempt ? 'reconnecting' : 'connecting');
-        const url = new URL(WS_URL);
-        url.searchParams.set('app_id', this.appId);
+        this.lastSocketError = null;
         let socket: WebSocket;
         try {
+            const url = new URL(getPublicWsUrl());
+            if (url.protocol !== 'wss:') throw new Error('Insecure market-data endpoint');
             socket = this.createSocket(url.toString());
-        } catch (error) {
-            this.onConnectionError(
-                error instanceof Error ? error : new Error('Could not create the Deriv market-data connection.')
+        } catch {
+            this.lastSocketError = new Error(
+                'Could not create a secure Deriv market-data connection. Check the configured Deriv environment.'
             );
-            console.error('Could not create Deriv market-data connection:', error);
-            this.onStatus('reconnecting');
-            this.scheduleReconnect();
+            this.retryOrStop();
             return;
         }
         this.socket = socket;
@@ -169,7 +187,9 @@ export class DerivMarketDataClient {
     disconnect() {
         this.stopped = true;
         if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+        if (this.stableConnectionTimer) clearTimeout(this.stableConnectionTimer);
         this.reconnectTimer = null;
+        this.stableConnectionTimer = null;
         this.rejectPendingRequests(new Error('Market-data connection closed.'));
         const socket = this.socket;
         this.socket = null;
@@ -277,7 +297,10 @@ export class DerivMarketDataClient {
     }
 
     private readonly handleOpen = () => {
-        this.reconnectAttempt = 0;
+        this.stableConnectionTimer = setTimeout(() => {
+            this.reconnectAttempt = 0;
+            this.stableConnectionTimer = null;
+        }, STABLE_CONNECTION_MS);
         this.onConnectionError(null);
         this.onStatus('connected');
     };
@@ -312,27 +335,51 @@ export class DerivMarketDataClient {
 
     private readonly handleClose = () => {
         this.socket = null;
+        if (this.stableConnectionTimer) clearTimeout(this.stableConnectionTimer);
+        this.stableConnectionTimer = null;
         this.tickSubscriptions.clear();
         this.rejectPendingRequests(new Error('Deriv market-data connection was interrupted.'));
         if (this.stopped) return;
-        this.onConnectionError(new Error('Deriv market-data connection closed. Reconnecting.'));
-        this.onStatus('reconnecting');
-        this.scheduleReconnect();
+        this.lastSocketError ??= new Error(
+            'Deriv market-data connection closed unexpectedly. Check network access and retry.'
+        );
+        this.retryOrStop();
     };
 
     private readonly handleError = () => {
-        this.onConnectionError(new Error('Could not establish the Deriv market-data WebSocket connection.'));
+        this.lastSocketError = new Error(
+            "The browser could not connect to Deriv's secure public market-data service. Check network access and browser extensions."
+        );
+        this.onConnectionError(this.lastSocketError);
         this.socket?.close();
     };
 
     private scheduleReconnect() {
-        if (this.stopped || this.reconnectTimer) return;
+        if (this.stopped || this.reconnectTimer || this.reconnectAttempt >= MAX_RECONNECT_ATTEMPTS) {
+            return null;
+        }
         const delay = Math.min(1000 * 2 ** this.reconnectAttempt, MAX_RECONNECT_DELAY_MS);
         this.reconnectAttempt += 1;
         this.reconnectTimer = setTimeout(() => {
             this.reconnectTimer = null;
             this.connect();
         }, delay);
+        return delay;
+    }
+
+    private retryOrStop() {
+        const delay = this.scheduleReconnect();
+        if (delay === null) {
+            this.onConnectionError(
+                new Error('Deriv market data is unavailable after five retries. Reload the page to try again.')
+            );
+            this.onStatus('disconnected');
+            return;
+        }
+        this.onConnectionError(
+            new Error(`${this.lastSocketError?.message ?? 'Deriv market data is unavailable.'} Retrying in ${delay / 1000}s.`)
+        );
+        this.onStatus('reconnecting');
     }
 
     private request(payload: Record<string, unknown>): Promise<ApiMessage> {

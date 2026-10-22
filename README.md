@@ -43,7 +43,7 @@ client bundle; never place account tokens, passwords, or private credentials in
 
 | Variable | Description |
 |---|---|
-| `NEXT_PUBLIC_DERIV_APP_ID` | Deriv app id issued for your registered app. Drives OAuth login/sign-up and WebSocket connections. Without it, Log in / Sign up stay disabled. |
+| `NEXT_PUBLIC_DERIV_APP_ID` | Deriv OAuth client ID issued for your registered app. Drives login/sign-up; the public market-data feed does not use this value. Without it, Log in / Sign up stay disabled. |
 | `NEXT_PUBLIC_DERIV_ENV` | `production` for live Deriv endpoints; `preview` (or `staging`) for staging. Read by both the bot's URL resolver and `@deriv/core` for OAuth. |
 | `NEXT_PUBLIC_DERIV_REFERRAL_LINK` | Affiliate referral link — appended as `affiliate_token` / `utm_campaign` on OAuth (optional). |
 | `GD_CLIENT_ID` / `GD_APP_ID` / `GD_API_KEY` | Google Drive integration credentials for saving/loading strategies (optional). |
@@ -84,13 +84,13 @@ SmartCharts engine assets are copied into `dist/js/smartcharts/` during the buil
 
 ## Public market analysis
 
-The **AI Analysis** link opens an independent `/analysis` page. It uses the existing
-`NEXT_PUBLIC_DERIV_APP_ID` build-time setting to connect to Deriv's public WebSocket
-API, discover currently available volatility indices and digit contract types, and
-retrieve genuine tick history and live ticks. It does not use an account token,
-authorize an account, place contracts, or start or change a bot. If the app ID is
-missing, or the public feed disconnects or becomes stale, the page reports that
-condition instead of presenting old or simulated values as live.
+The **AI Analysis** link opens an independent `/analysis` page. It uses Deriv's
+environment-selected public market-data WebSocket to discover currently available
+volatility indices and digit contract types, and retrieve genuine tick history and
+live ticks. It does not need the OAuth client ID or an account token, authorize an
+account, place contracts, or start or change a bot. If the public feed disconnects,
+an API request fails, or data becomes stale, the page reports that condition instead
+of presenting old or simulated values as live.
 
 The page reports digit frequencies and deterministic statistical checks against
 uniform-digit reference rates. A signal is a descriptive historical watch condition,
